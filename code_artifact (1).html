@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>모둠 짜기 도구</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 기본 폰트 및 부드러운 스크롤 설정 */
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg p-6 md:p-8">
+        <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">🎲 랜덤 모둠 짜기</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- 명단 입력란 -->
+            <div>
+                <label for="student-names" class="block text-sm font-medium text-gray-700 mb-2">학생 명단 (한 줄에 한 명씩)</label>
+                <textarea id="student-names" rows="10" 
+                    class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" 
+                    placeholder="홍길동&#10;김철수&#10;이영희..."></textarea>
+                <p class="text-xs text-gray-500 mt-2">* 입력한 명단은 이 브라우저에 자동 저장됩니다.</p>
+            </div>
+
+            <div class="flex flex-col justify-between">
+                <div>
+                    <label for="group-count" class="block text-sm font-medium text-gray-700 mb-2">몇 모둠으로 나눌까요?</label>
+                    <input type="number" id="group-count" min="1" value="4" 
+                        class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4">
+                    
+                    <!-- 안내 메시지 (오류 발생 시 표시됨) -->
+                    <div id="message-box" class="hidden bg-red-100 text-red-700 p-3 rounded-lg text-sm mb-4"></div>
+                </div>
+
+                <button onclick="generateGroups()" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-md transition duration-200 text-lg">
+                    모둠 짜기 시작!
+                </button>
+            </div>
+        </div>
+
+        <hr class="my-8 border-gray-200">
+        
+        <div id="result-area" class="hidden">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">✨ 모둠 편성 결과</h2>
+            <div id="groups-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <!-- 결과가 여기에 카드로 들어갑니다 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const namesInput = document.getElementById('student-names');
+        const groupCountInput = document.getElementById('group-count');
+        const resultArea = document.getElementById('result-area');
+        const groupsContainer = document.getElementById('groups-container');
+        const messageBox = document.getElementById('message-box');
+
+        // 페이지가 열릴 때 저장된 명단 불러오기
+        window.onload = function() {
+            const savedNames = localStorage.getItem('savedStudentNames');
+            if (savedNames) {
+                namesInput.value = savedNames;
+            }
+        };
+
+        // 명단이 바뀔 때마다 자동으로 브라우저에 저장
+        namesInput.addEventListener('input', function() {
+            localStorage.setItem('savedStudentNames', namesInput.value);
+        });
+
+        // 메시지 표시 함수
+        function showMessage(msg, isError = true) {
+            messageBox.textContent = msg;
+            messageBox.className = isError 
+                ? "bg-red-100 text-red-700 p-3 rounded-lg text-sm mb-4 block" 
+                : "bg-green-100 text-green-700 p-3 rounded-lg text-sm mb-4 block";
+            
+            // 3초 후 메시지 숨기기
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 3000);
+        }
+
+        // 배열 순서를 무작위로 섞는 함수 (피셔-예이츠 셔플)
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        // 모둠 짜기 실행 함수
+        function generateGroups() {
+            // 1. 입력된 텍스트 가져와서 빈 줄 지우고 배열로 만들기
+            const text = namesInput.value;
+            const students = text.split('\n').map(name => name.trim()).filter(name => name.length > 0);
+            
+            const numGroups = parseInt(groupCountInput.value, 10);
+
+            // 2. 오류 검사
+            if (students.length === 0) {
+                showMessage("학생 명단을 입력해 주세요!");
+                return;
+            }
+            if (isNaN(numGroups) || numGroups < 1) {
+                showMessage("모둠 수는 1 이상의 숫자로 입력해 주세요!");
+                return;
+            }
+            if (numGroups > students.length) {
+                showMessage("학생 수보다 모둠 수가 더 많을 수 없습니다.");
+                return;
+            }
+
+            // 3. 학생 섞기 및 모둠 분배
+            const shuffledStudents = shuffle([...students]);
+            const groups = Array.from({ length: numGroups }, () => []);
+            
+            shuffledStudents.forEach((student, index) => {
+                groups[index % numGroups].push(student);
+            });
+
+            // 4. 화면에 그리기
+            groupsContainer.innerHTML = ''; // 이전 결과 지우기
+            
+            groups.forEach((group, index) => {
+                const groupCard = document.createElement('div');
+                groupCard.className = "bg-blue-50 border border-blue-100 p-4 rounded-xl shadow-sm";
+                
+                const title = document.createElement('h3');
+                title.className = "font-bold text-blue-800 border-b border-blue-200 pb-2 mb-2";
+                title.textContent = `${index + 1}모둠 (${group.length}명)`;
+                
+                const list = document.createElement('ul');
+                list.className = "text-gray-700 space-y-1";
+                
+                group.forEach(student => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `• ${student}`;
+                    list.appendChild(listItem);
+                });
+
+                groupCard.appendChild(title);
+                groupCard.appendChild(list);
+                groupsContainer.appendChild(groupCard);
+            });
+
+            // 결과 영역 보여주기
+            resultArea.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
